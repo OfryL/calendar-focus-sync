@@ -1,0 +1,26 @@
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Release artifacts
+dist/
+*.dmg
+*.xcarchive
+*.pkg
+*.zip
+
+# Signing material must never be committed
+*.p12
+*.p8
+*.cer
+*.mobileprovision
+*.provisionprofile
+
+# macOS
+.DS_Store
