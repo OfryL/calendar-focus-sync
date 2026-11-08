@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4A0000012C0000000000A006 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 4A0000012C0000000000A005 /* PrivacyInfo.xcprivacy */; };
 		4907ED502AA5C0EF000A566E /* CalendarSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4907ED4F2AA5C0EF000A566E /* CalendarSync.swift */; };
 		490D80C72ADB151800E361C1 /* calendar-focus-sync.shortcut in Resources */ = {isa = PBXBuildFile; fileRef = 490D80C62ADB151800E361C1 /* calendar-focus-sync.shortcut */; };
 		491C43832AFC3452000168EA /* SyncOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491C43822AFC3452000168EA /* SyncOrchestrator.swift */; };
@@ -46,6 +47,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		4A0000012C0000000000A002 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
+		4A0000012C0000000000A003 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = App.xcconfig; sourceTree = "<group>"; };
+		4A0000012C0000000000A004 /* Tests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Tests.xcconfig; sourceTree = "<group>"; };
+		4A0000012C0000000000A005 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		4907ED4F2AA5C0EF000A566E /* CalendarSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSync.swift; sourceTree = "<group>"; };
 		490D80C62ADB151800E361C1 /* calendar-focus-sync.shortcut */ = {isa = PBXFileReference; lastKnownFileType = file; path = "calendar-focus-sync.shortcut"; sourceTree = "<group>"; };
 		490D80C82ADB1E0A00E361C1 /* Calendar Focus SyncRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Calendar Focus SyncRelease.entitlements"; sourceTree = "<group>"; };
@@ -97,6 +102,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		4A0000012C0000000000A001 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				4A0000012C0000000000A002 /* Shared.xcconfig */,
+				4A0000012C0000000000A003 /* App.xcconfig */,
+				4A0000012C0000000000A004 /* Tests.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 		4907ED4E2AA5C0DA000A566E /* Services */ = {
 			isa = PBXGroup;
 			children = (
@@ -132,6 +147,7 @@
 			children = (
 				49AB0D8B2AA3A8C80047CC2E /* Calendar Focus Sync */,
 				49AB0D9D2AA3A8C80047CC2E /* Tests */,
+				4A0000012C0000000000A001 /* Config */,
 				49AB0D8A2AA3A8C80047CC2E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -159,6 +175,7 @@
 				49AB0D902AA3A8C80047CC2E /* Assets.xcassets */,
 				49AB0D952AA3A8C80047CC2E /* Calendar_Focus_Sync.entitlements */,
 				49C21A122AA5DE8D0063271F /* Info.plist */,
+				4A0000012C0000000000A005 /* PrivacyInfo.xcprivacy */,
 			);
 			path = "Calendar Focus Sync";
 			sourceTree = "<group>";
@@ -270,7 +287,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1430;
-				LastUpgradeCheck = 1500;
+				LastUpgradeCheck = 1640;
 				TargetAttributes = {
 					49AB0D882AA3A8C80047CC2E = {
 						CreatedOnToolsVersion = 14.3;
@@ -310,6 +327,7 @@
 			files = (
 				490D80C72ADB151800E361C1 /* calendar-focus-sync.shortcut in Resources */,
 				49AB0D912AA3A8C80047CC2E /* Assets.xcassets in Resources */,
+				4A0000012C0000000000A006 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -494,6 +512,7 @@
 		};
 		49AB0DAF2AA3A8C80047CC2E /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 4A0000012C0000000000A003 /* App.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -501,41 +520,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Calendar Focus Sync/Calendar_Focus_Sync.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = UP7DQ4WSUA;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Calendar Focus Sync/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Calendar Focus Sync";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_NSCalendarsUsageDescription = "Calendar Focus Sync needs access to your calendar to know when to activate Focus Modes";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MARKETING_VERSION = 0.6;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.andrewglago.Calendar-Focus-Sync";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		49AB0DB02AA3A8C80047CC2E /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = "Calendar Focus Sync/Calendar Focus SyncRelease.entitlements";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
-				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = UP7DQ4WSUA;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -548,8 +533,35 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.6;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.andrewglago.Calendar-Focus-Sync";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		49AB0DB02AA3A8C80047CC2E /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 4A0000012C0000000000A003 /* App.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = "Calendar Focus Sync/Calendar Focus SyncRelease.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Calendar Focus Sync/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Calendar Focus Sync";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "Calendar Focus Sync needs access to your calendar to know when to activate Focus Modes";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -558,16 +570,14 @@
 		};
 		49AB0DB22AA3A8C80047CC2E /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 4A0000012C0000000000A004 /* Tests.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.andrewglago.Calendar-Focus-SyncTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
@@ -577,17 +587,14 @@
 		};
 		49AB0DB32AA3A8C80047CC2E /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 4A0000012C0000000000A004 /* Tests.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.andrewglago.Calendar-Focus-SyncTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
@@ -632,8 +639,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sindresorhus/LaunchAtLogin-Modern";
 			requirement = {
-				branch = main;
-				kind = branch;
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

@@ -81,10 +81,9 @@ class SyncOrchestrator {
     
     @MainActor
     func go() async {
-        Task { @MainActor in
-            AppState.shared.calendarEvents = await syncCalendarEvents()
-            AppState.shared.calendars = store.calendars(for: .event)
-        }
+        let events = await syncCalendarEvents()
+        AppState.shared.calendarEvents = events
+        AppState.shared.calendars = store.calendars(for: .event)
     }
     
     @objc func triggerSync() {
@@ -93,14 +92,18 @@ class SyncOrchestrator {
         }
     }
     
+    /// Invalidates every scheduled timer and forgets it, so a re-sync starts from a clean slate
+    /// instead of accumulating dead timers for events whose identifiers have changed.
     func tearDownTimers() {
         for (_, timer) in activeFocusModeTimers {
             timer.invalidate()
         }
+        activeFocusModeTimers.removeAll()
         
         for (_, notifTimer) in notificationTimers {
             notifTimer.invalidate()
         }
+        notificationTimers.removeAll()
     }
         
     func syncCalendarEvents() async -> [CalendarEvent] {
@@ -127,14 +130,18 @@ class SyncOrchestrator {
         
         // Schedule focus mode activation for each event
         for event in events {
-            scheduleFocusModeActivation(event: event)
+            await scheduleFocusModeActivation(event: event)
         }
         
         return events
     }
     
-    func scheduleFocusModeActivation(event: CalendarEvent) {
-        // Schedules focus mode activation for a particular time
+    /// Schedules focus mode activation (and the heads-up notification) for one event.
+    ///
+    /// Timers are created on the main actor so they attach to the main run loop;
+    /// `MainActor.run` is safe to call whether or not we are already on the main thread,
+    /// unlike `DispatchQueue.main.sync`, which deadlocks when called from the main thread.
+    func scheduleFocusModeActivation(event: CalendarEvent) async {
         let eventStartDate = event.startDate
         let timeBuffer = userPreferences.selectedPriorTimeBuffer * 60
         
@@ -144,7 +151,7 @@ class SyncOrchestrator {
          
         let triggerDate = eventStartDate.addingTimeInterval(TimeInterval(triggerDelta))
                 
-        DispatchQueue.main.sync {
+        await MainActor.run {
             // Check if there's an active timer for this event
             if let activeTimer = self.activeFocusModeTimers[event.id] {
                 activeTimer.invalidate()
@@ -163,8 +170,10 @@ class SyncOrchestrator {
             }
             
             // Schedule notification for 1 minute before focus mode activation
+            // (or immediately if activation is less than a minute away)
             if self.userPreferences.notificationsAccessGranted {
-                let notificationTimer = Timer.scheduledTimer(withTimeInterval: triggerDate.timeIntervalSinceNow - 60, repeats: false, block: { _ in
+                let notificationDelay = max(0, triggerDate.timeIntervalSinceNow - 60)
+                let notificationTimer = Timer.scheduledTimer(withTimeInterval: notificationDelay, repeats: false, block: { _ in
                     sendFocusBeginningNotification(event: event)
                 })
                 

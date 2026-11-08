@@ -1,0 +1,257 @@
+# Builds signed, notarized release artifacts.
+#
+#   dmg        Developer ID signed + notarized DMG, attached to a GitHub Release
+#   app-store  Mac App Store build uploaded to App Store Connect
+#
+# Triggered by pushing a tag like v0.7.0, or manually (workflow_dispatch).
+# All secrets are documented in RELEASING.md.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: What to build
+        type: choice
+        options: [all, dmg, app-store]
+        default: all
+
+env:
+  PROJECT: Calendar Focus Sync.xcodeproj
+  SCHEME: Calendar Focus Sync
+  APP_NAME: Calendar Focus Sync
+
+jobs:
+  preflight:
+    name: Check version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build: ${{ steps.version.outputs.build }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Read version from Config/Shared.xcconfig
+        id: version
+        run: |
+          VERSION=$(sed -n 's/^MARKETING_VERSION = \(.*\)$/\1/p' Config/Shared.xcconfig)
+          BUILD=$(sed -n 's/^CURRENT_PROJECT_VERSION = \(.*\)$/\1/p' Config/Shared.xcconfig)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "Version $VERSION (build $BUILD)"
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" != "v$VERSION" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match MARKETING_VERSION $VERSION in Config/Shared.xcconfig"
+            exit 1
+          fi
+
+  dmg:
+    name: Developer ID DMG
+    needs: preflight
+    if: github.event_name == 'push' || inputs.channel == 'all' || inputs.channel == 'dmg'
+    runs-on: macos-26
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_PATH: ${{ runner.temp }}/AuthKey.p8
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check secrets
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          DEVELOPER_ID_APPLICATION_P12: ${{ secrets.DEVELOPER_ID_APPLICATION_P12 }}
+          CERTIFICATES_P12_PASSWORD: ${{ secrets.CERTIFICATES_P12_PASSWORD }}
+        run: |
+          missing=()
+          for s in APPLE_TEAM_ID APP_STORE_CONNECT_API_KEY_ID APP_STORE_CONNECT_API_ISSUER_ID \
+                   APP_STORE_CONNECT_API_KEY_P8 DEVELOPER_ID_APPLICATION_P12 CERTIFICATES_P12_PASSWORD; do
+            [[ -n "${!s}" ]] || missing+=("$s")
+          done
+          if (( ${#missing[@]} )); then
+            echo "::error::Missing repository secrets: ${missing[*]} (see RELEASING.md)"
+            exit 1
+          fi
+
+      - name: Import Developer ID certificate
+        env:
+          DEVELOPER_ID_APPLICATION_P12: ${{ secrets.DEVELOPER_ID_APPLICATION_P12 }}
+          P12_PASSWORD: ${{ secrets.CERTIFICATES_P12_PASSWORD }}
+        run: scripts/ci/import-certificates.sh DEVELOPER_ID_APPLICATION_P12
+
+      - name: Write App Store Connect API key
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+        run: printf '%s\n' "$APP_STORE_CONNECT_API_KEY_P8" > "$APP_STORE_CONNECT_API_KEY_PATH"
+
+      - name: Resolve Swift packages
+        run: xcodebuild -resolvePackageDependencies -project "$PROJECT" -scheme "$SCHEME"
+
+      - name: Archive (Developer ID, hardened runtime, universal)
+        run: |
+          mkdir -p build
+          set -o pipefail
+          xcodebuild archive \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath "build/$APP_NAME.xcarchive" \
+            -derivedDataPath build/DerivedData \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            PROVISIONING_PROFILE_SPECIFIER= \
+            OTHER_CODE_SIGN_FLAGS="--timestamp" \
+            | tee build/archive.log | grep -E '(error|warning:|\*\* ARCHIVE|CodeSign)' || true
+          grep -q '\*\* ARCHIVE SUCCEEDED \*\*' build/archive.log
+
+      - name: Collect app
+        run: |
+          mkdir -p dist
+          cp -R "build/$APP_NAME.xcarchive/Products/Applications/$APP_NAME.app" dist/
+          codesign --verify --deep --strict --verbose=2 "dist/$APP_NAME.app"
+          codesign -dvv "dist/$APP_NAME.app" 2>&1 | grep -E 'Authority|TeamIdentifier|Timestamp|flags'
+
+      - name: Notarize and staple app
+        run: scripts/ci/notarize.sh "dist/$APP_NAME.app"
+
+      - name: Build, sign, notarize and staple DMG
+        run: |
+          DMG="dist/Calendar-Focus-Sync-${{ needs.preflight.outputs.version }}.dmg"
+          scripts/make-dmg.sh "dist/$APP_NAME.app" "$DMG" "Developer ID Application"
+          scripts/ci/notarize.sh "$DMG"
+          echo "DMG=$DMG" >> "$GITHUB_ENV"
+
+      - name: Gatekeeper assessment
+        run: |
+          spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
+          spctl --assess --type execute --verbose=2 "dist/$APP_NAME.app"
+          shasum -a 256 "$DMG" | tee "$DMG.sha256"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dmg
+          path: |
+            dist/*.dmg
+            dist/*.sha256
+
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          files: |
+            dist/*.dmg
+            dist/*.sha256
+          generate_release_notes: true
+          draft: false
+
+  app-store:
+    name: Mac App Store upload
+    needs: preflight
+    if: github.event_name == 'push' || inputs.channel == 'all' || inputs.channel == 'app-store'
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_PATH: ${{ runner.temp }}/AuthKey.p8
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check secrets
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APPLE_DISTRIBUTION_P12: ${{ secrets.APPLE_DISTRIBUTION_P12 }}
+          MAC_INSTALLER_DISTRIBUTION_P12: ${{ secrets.MAC_INSTALLER_DISTRIBUTION_P12 }}
+          CERTIFICATES_P12_PASSWORD: ${{ secrets.CERTIFICATES_P12_PASSWORD }}
+          APP_STORE_PROVISIONING_PROFILE: ${{ secrets.APP_STORE_PROVISIONING_PROFILE }}
+        run: |
+          missing=()
+          for s in APPLE_TEAM_ID APP_STORE_CONNECT_API_KEY_ID APP_STORE_CONNECT_API_ISSUER_ID \
+                   APP_STORE_CONNECT_API_KEY_P8 APPLE_DISTRIBUTION_P12 MAC_INSTALLER_DISTRIBUTION_P12 \
+                   CERTIFICATES_P12_PASSWORD APP_STORE_PROVISIONING_PROFILE; do
+            [[ -n "${!s}" ]] || missing+=("$s")
+          done
+          if (( ${#missing[@]} )); then
+            echo "::error::Missing repository secrets: ${missing[*]} (see RELEASING.md)"
+            exit 1
+          fi
+
+      - name: Import distribution certificates
+        env:
+          APPLE_DISTRIBUTION_P12: ${{ secrets.APPLE_DISTRIBUTION_P12 }}
+          MAC_INSTALLER_DISTRIBUTION_P12: ${{ secrets.MAC_INSTALLER_DISTRIBUTION_P12 }}
+          P12_PASSWORD: ${{ secrets.CERTIFICATES_P12_PASSWORD }}
+        run: scripts/ci/import-certificates.sh APPLE_DISTRIBUTION_P12 MAC_INSTALLER_DISTRIBUTION_P12
+
+      - name: Install provisioning profile
+        id: profile
+        env:
+          APP_STORE_PROVISIONING_PROFILE: ${{ secrets.APP_STORE_PROVISIONING_PROFILE }}
+        run: scripts/ci/install-provisioning-profile.sh APP_STORE_PROVISIONING_PROFILE
+
+      - name: Write App Store Connect API key
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+        run: printf '%s\n' "$APP_STORE_CONNECT_API_KEY_P8" > "$APP_STORE_CONNECT_API_KEY_PATH"
+
+      - name: Resolve Swift packages
+        run: xcodebuild -resolvePackageDependencies -project "$PROJECT" -scheme "$SCHEME"
+
+      - name: Archive (Apple Distribution)
+        run: |
+          mkdir -p build
+          set -o pipefail
+          xcodebuild archive \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath "build/$APP_NAME.xcarchive" \
+            -derivedDataPath build/DerivedData \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="${{ steps.profile.outputs.uuid }}" \
+            | tee build/archive.log | grep -E '(error|warning:|\*\* ARCHIVE|CodeSign)' || true
+          grep -q '\*\* ARCHIVE SUCCEEDED \*\*' build/archive.log
+
+      - name: Export and upload to App Store Connect
+        env:
+          PROFILE_NAME: ${{ steps.profile.outputs.name }}
+        run: |
+          BUNDLE_ID=$(sed -n 's/^APP_BUNDLE_IDENTIFIER = \(.*\)$/\1/p' Config/Shared.xcconfig)
+          sed -e "s|__TEAM_ID__|$APPLE_TEAM_ID|" \
+              -e "s|__BUNDLE_ID__|$BUNDLE_ID|" \
+              -e "s|__PROFILE_NAME__|$PROFILE_NAME|" \
+              Config/ExportOptions-app-store.plist > build/ExportOptions.plist
+          plutil -lint build/ExportOptions.plist
+          set -o pipefail
+          xcodebuild -exportArchive \
+            -archivePath "build/$APP_NAME.xcarchive" \
+            -exportOptionsPlist build/ExportOptions.plist \
+            -exportPath build/app-store \
+            -authenticationKeyPath "$APP_STORE_CONNECT_API_KEY_PATH" \
+            -authenticationKeyID "$APP_STORE_CONNECT_API_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_API_ISSUER_ID" \
+            | tee build/export.log
+          grep -q '\*\* EXPORT SUCCEEDED \*\*' build/export.log
+          echo "Uploaded version ${{ needs.preflight.outputs.version }} (build ${{ needs.preflight.outputs.build }}) to App Store Connect."
+
+      - name: Upload export logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-store-logs
+          path: |
+            build/*.log
+            build/app-store/*.plist
+          if-no-files-found: ignore

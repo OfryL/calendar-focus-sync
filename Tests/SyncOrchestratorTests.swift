@@ -94,8 +94,9 @@ final class SyncOrchestratorTests: XCTestCase {
     func testTimersUpdatedWhenChangeNotificationComesThrough() async throws {
         let orchestrator = TestableSyncOrchestrator(userPreferences: mockUserPreferences, syncHandlers: [mockSyncHandler], skipPermissionsCheck: true)
         
-        // Setup an event and a mock timer
-        let event = MockEKEvent(title: "Event", startDate: Date(), endDate: Date().addingTimeInterval(60 * 60))
+        // Setup a future event (events that already started are never scheduled)
+        let futureDate = Date().addingTimeInterval(60 * 60 * 24)
+        let event = MockEKEvent(title: "Event", startDate: futureDate, endDate: futureDate.addingTimeInterval(60 * 60))
         store = MockEKEventStore(eventsToReturn: [event])
                         
         // Sync and schedule focus mode
@@ -108,7 +109,7 @@ final class SyncOrchestratorTests: XCTestCase {
         XCTAssertNotNil(initialTimer)
         
         // Add a second event to the store
-        let updatedEvent = MockEKEvent(title: "Updated Event", startDate: Date(), endDate: Date().addingTimeInterval(60 * 60))
+        let updatedEvent = MockEKEvent(title: "Updated Event", startDate: futureDate, endDate: futureDate.addingTimeInterval(60 * 60))
         
         store = MockEKEventStore(eventsToReturn: [event, updatedEvent])
 
@@ -122,14 +123,11 @@ final class SyncOrchestratorTests: XCTestCase {
         
         await fulfillment(of: [expectation], timeout: 10.0)
                 
-        // Assert two timers are created and active
+        // The re-sync tears down the previous timers and schedules exactly one per event
         let timers = orchestrator.activeFocusModeTimers
                 
-        // This might seem counter intuitive, the count should be 2 because the first timer should be invalidated and removed
-        // In practice that's what will happen because the id returned from the sync will be the same for both events
-        // But in the mock, the id is randomly generated, so the first timer will not be invalidated and removed
-        XCTAssertEqual(timers.count, 3)
-        
+        XCTAssertEqual(timers.count, 2)
+        XCTAssertFalse(initialTimer!.isValid)
         XCTAssertTrue(timers.values.allSatisfy({ $0.isValid }))
     }
 }

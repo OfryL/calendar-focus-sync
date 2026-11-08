@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT: Calendar Focus Sync.xcodeproj
+  SCHEME: Calendar Focus Sync
+
+jobs:
+  build-and-test:
+    name: Build & test (unsigned)
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          sw_vers
+
+      - name: Resolve Swift packages
+        run: xcodebuild -resolvePackageDependencies -project "$PROJECT" -scheme "$SCHEME"
+
+      - name: Build
+        run: |
+          mkdir -p build
+          set -o pipefail
+          xcodebuild build \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            DEVELOPMENT_TEAM= \
+            | tee build/build.log | grep -E '(error|warning:|\*\* BUILD)' || true
+          grep -q '\*\* BUILD SUCCEEDED \*\*' build/build.log
+
+      - name: Test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            -resultBundlePath build/Tests.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            DEVELOPMENT_TEAM= \
+            | tee build/test.log | grep -E '(error|Test Case|Test Suite|Executed|\*\* TEST)' || true
+          grep -q '\*\* TEST SUCCEEDED \*\*' build/test.log
+
+      - name: Upload logs and test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs
+          path: |
+            build/*.log
+            build/Tests.xcresult
+          if-no-files-found: ignore

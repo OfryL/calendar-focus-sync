@@ -1,0 +1,21 @@
+// Shared build settings for every target.
+//
+// Everything a release needs to know about *who* ships the app and *which*
+// version it is lives here, so a new maintainer only has to touch this file.
+// CI overrides any of these on the xcodebuild command line when required.
+
+// Your Apple Developer Team ID (Apple Developer > Membership details).
+// Leave empty to build unsigned locally; CI sets it from the APPLE_TEAM_ID secret.
+DEVELOPMENT_TEAM =
+
+// Reverse-DNS prefix for all bundle identifiers. This must be an App ID that
+// belongs to *your* team: the original com.andrewglago.* identifiers are
+// registered to the upstream author and cannot be reused for a new
+// App Store listing.
+APP_BUNDLE_IDENTIFIER = net.ofry.calendar-focus-sync
+
+// User-facing version (CFBundleShortVersionString) and build number
+// (CFBundleVersion). The build number must increase for every upload to
+// App Store Connect; scripts/bump-version.sh updates both.
+MARKETING_VERSION = 0.7.0
+CURRENT_PROJECT_VERSION = 6

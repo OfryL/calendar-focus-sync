@@ -6,5 +6,7 @@
 	<string>Calendar Focus Sync needs access to your calendar to know when to activate Focus Modes</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

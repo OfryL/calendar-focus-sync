@@ -13,7 +13,7 @@ struct AppMain: App {
                     .environmentObject(appState)
                 
                 Spacer()
-            }.windowStyle(HiddenTitleBarWindowStyle())
+            }.windowStyle(.hiddenTitleBar)
 
             
             MenuBarExtra {
